@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petualangan Sistem Pencernaan Manusia</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font: Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            blue: '#0284c7',
+                            green: '#10b981',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e',
+                            purple: '#8b5cf6',
+                            dark: '#0f172a'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Render anatomi lebih berdimensi, dengan kontur dan pencahayaan halus */
+        svg[aria-label*="anatomi"] {
+            filter: drop-shadow(0 12px 16px rgba(72, 45, 35, .16));
+            overflow: visible;
+        }
+        .dropzone { cursor: pointer; transition: transform .18s ease, filter .18s ease; }
+        .dropzone:hover { filter: drop-shadow(0 0 5px rgba(2,132,199,.65)); }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .dropzone-active {
+            stroke-dasharray: 6;
+            animation: dash 1s linear infinite;
+        }
+
+        @keyframes dash {
+            to { stroke-dashoffset: -12; }
+        }
+
+        /* Pulse animation for highlights */
+        .pulse-glow {
+            animation: pulseGlow 1.5s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 5px #10b981, 0 0 10px #10b981; }
+            to { box-shadow: 0 0 15px #10b981, 0 0 25px #10b981; }
+        }
+
+        /* Food Flow Animation Canvas overlay */
+        #foodFlowCanvas {
+            pointer-events: none;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="bg-white shadow-md sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+            <!-- Title -->
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-sky-500 to-indigo-600 text-white p-2.5 rounded-2xl shadow-lg shadow-sky-200">
+                    <i class="fa-solid font-bold fa-bacteria text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-extrabold text-slate-800 leading-tight">
+                        Petualangan <span class="text-sky-600">Pencernaan</span>
+                    </h1>
+                    <p class="text-xs text-slate-500 font-medium hidden sm:block">Media Pembelajaran IPA Interaktif</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Stats -->
+            <div class="flex items-center gap-3 sm:gap-6 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl">
+                <!-- Score -->
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-500 text-lg"></i>
+                    <div>
+                        <span class="text-[10px] block text-slate-400 font-semibold uppercase leading-none">Skor</span>
+                        <span id="scoreDisplay" class="text-lg font-bold text-slate-700 leading-none">0</span>
+                    </div>
+                </div>
+
+                <div class="h-8 w-[1px] bg-slate-200"></div>
+
+                <!-- Timer -->
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-stopwatch text-sky-500 text-lg"></i>
+                    <div>
+                        <span class="text-[10px] block text-slate-400 font-semibold uppercase leading-none">Waktu</span>
+                        <span id="timerDisplay" class="text-lg font-bold text-slate-700 leading-none">00:00</span>
+                    </div>
+                </div>
+
+                <div class="h-8 w-[1px] bg-slate-200"></div>
+
+                <!-- Controls -->
+                <div class="flex items-center gap-2">
+                    <button id="soundBtn" onclick="toggleSound()" class="p-2 bg-white text-slate-600 rounded-lg shadow-sm border border-slate-200 hover:bg-slate-100 transition" title="Mute/Unmute Suara">
+                        <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <button onclick="resetGameModal()" class="p-2 bg-white text-rose-500 rounded-lg shadow-sm border border-slate-200 hover:bg-rose-50 transition" title="Ulangi Permainan">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Switcher Tabs -->
+        <div class="bg-slate-800 text-white shadow-inner">
+            <div class="max-w-6xl mx-auto px-4 flex justify-center sm:justify-start gap-1 sm:gap-2">
+                <button onclick="switchLevel(1)" id="tab-lvl-1" class="level-tab px-4 py-2.5 font-semibold text-xs sm:text-sm flex items-center gap-2 border-b-4 border-sky-400 bg-slate-700 transition">
+                    <span class="w-5 h-5 rounded-full bg-sky-500 text-white text-xs flex items-center justify-center font-bold">1</span>
+                    Pasang Organ
+                </button>
+                <button onclick="switchLevel(2)" id="tab-lvl-2" class="level-tab px-4 py-2.5 font-semibold text-xs sm:text-sm flex items-center gap-2 border-b-4 border-transparent hover:bg-slate-700 opacity-70 transition">
+                    <span class="w-5 h-5 rounded-full bg-slate-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+                    Urutkan Perjalanan
+                </button>
+                <button onclick="switchLevel(3)" id="tab-lvl-3" class="level-tab px-4 py-2.5 font-semibold text-xs sm:text-sm flex items-center gap-2 border-b-4 border-transparent hover:bg-slate-700 opacity-70 transition">
+                    <span class="w-5 h-5 rounded-full bg-slate-600 text-white text-xs flex items-center justify-center font-bold">3</span>
+                    Organ-Fungsi-Enzim
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN GAME CONTAINER -->
+    <main class="max-w-6xl mx-auto w-full px-4 py-6 flex-1 flex flex-col justify-center">
+
+        <!-- ================= LEVEL 1: PASANG ORGAN ================= -->
+        <section id="level1" class="level-container space-y-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-2">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-puzzle-piece text-sky-500"></i> Level 1: Pasang Organ Pencernaan
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-500">Tarik (drag) nama organ di sebelah kanan dan letakkan pada posisi titik yang tepat di dalam tubur.</p>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 text-sky-800 text-xs px-3 py-1.5 rounded-xl font-medium">
+                    Progres: <span id="l1-progress" class="font-bold text-sky-600">0</span> / 6 Organ
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                <!-- Human Body SVG Diagram -->
+                <div class="md:col-span-7 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 relative flex justify-center items-center min-h-[420px]">
+                    <div class="relative w-full max-w-[340px]">
+                        <!-- Interactive SVG Diagram -->
+                        <svg viewBox="0 0 300 500" class="w-full h-auto drop-shadow-md" role="img" aria-label="Ilustrasi anatomi sistem pencernaan manusia dari mulut hingga anus">
+                            <defs>
+                                <linearGradient id="skinReal" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0" stop-color="#d99b78"/>
+                                    <stop offset=".28" stop-color="#f4c7a7"/>
+                                    <stop offset=".62" stop-color="#f8d5b8"/>
+                                    <stop offset="1" stop-color="#c98262"/>
+                                </linearGradient>
+                                <linearGradient id="organRed" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#f08a83"/>
+                                    <stop offset=".5" stop-color="#c84d55"/>
+                                    <stop offset="1" stop-color="#8f2639"/>
+                                </linearGradient>
+                                <linearGradient id="liverReal" x1="0" y1="0" x2="0.8" y2="1">
+                                    <stop offset="0" stop-color="#a95a48"/>
+                                    <stop offset=".55" stop-color="#7d302d"/>
+                                    <stop offset="1" stop-color="#4d2025"/>
+                                </linearGradient>
+                                <linearGradient id="stomachReal" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#ffc0ad"/>
+                                    <stop offset=".55" stop-color="#e97979"/>
+                                    <stop offset="1" stop-color="#b94358"/>
+                                </linearGradient>
+                                <linearGradient id="gutReal" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#ffb9a6"/>
+                                    <stop offset=".45" stop-color="#e98279"/>
+                                    <stop offset="1" stop-color="#bd4f55"/>
+                                </linearGradient>
+                                <linearGradient id="colonReal" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#f4c27d"/>
+                                    <stop offset=".5" stop-color="#d9974f"/>
+                                    <stop offset="1" stop-color="#a96335"/>
+                                </linearGradient>
+                                <filter id="softDepth" x="-25%" y="-25%" width="150%" height="150%">
+                                    <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="blur"/>
+                                    <feOffset dy="2" dx="1" result="offset"/>
+                                    <feComponentTransfer><feFuncA type="linear" slope=".32"/></feComponentTransfer>
+                                    <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                                <radialGradient id="skinLight" cx="42%" cy="25%" r="78%">
+                                    <stop offset="0" stop-color="#ffe2ca" stop-opacity=".82"/>
+                                    <stop offset=".48" stop-color="#efb99a" stop-opacity=".35"/>
+                                    <stop offset="1" stop-color="#8f4d3c" stop-opacity=".52"/>
+                                </radialGradient>
+                                <linearGradient id="muscleShade" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0" stop-color="#9f5e4c" stop-opacity=".32"/>
+                                    <stop offset=".22" stop-color="#ffe1c7" stop-opacity=".15"/>
+                                    <stop offset=".5" stop-color="#fff0dd" stop-opacity=".42"/>
+                                    <stop offset=".78" stop-color="#e5a083" stop-opacity=".12"/>
+                                    <stop offset="1" stop-color="#7d4236" stop-opacity=".35"/>
+                                </linearGradient>
+                                <filter id="anatomyShadow" x="-30%" y="-20%" width="160%" height="150%">
+                                    <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="shadow"/>
+                                    <feOffset dx="2" dy="4" result="offsetShadow"/>
+                                    <feComponentTransfer><feFuncA type="linear" slope=".24"/></feComponentTransfer>
+                                    <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                            </defs>
+                            <!-- Semi-transparent anatomical torso -->
+                            <path d="M150 15 C174 15 190 35 190 61 C190 83 179 99 185 116
+                                     C191 128 211 140 222 165 C235 198 229 255 220 303
+                                     C215 337 210 374 207 410 L199 482
+                                     Q190 489 183 472 L164 367 Q158 350 150 350
+                                     Q142 350 136 367 L117 472 Q110 489 101 482
+                                     L93 410 C90 374 85 337 80 303 C71 255 65 198 78 165
+                                     C89 140 109 128 115 116 C121 99 110 83 110 61
+                                     C110 35 126 15 150 15 Z"
+                                  fill="url(#skinReal)" fill-opacity=".78" stroke="#a9654f" stroke-width="1.8" filter="url(#anatomyShadow)"/>
+                            <!-- Lapisan cahaya dan bayangan kulit untuk efek volume -->
+                            <path d="M150 18 C173 18 187 37 187 61 C187 82 179 98 184 115
+                                     C193 130 210 145 218 169 C226 205 220 254 213 297
+                                     C207 333 204 371 201 410 L195 474
+                                     Q190 478 187 465 L160 360 Q155 348 150 348
+                                     Q145 348 140 360 L113 465 Q110 478 105 474
+                                     L99 410 C96 371 93 333 87 297 C80 254 74 205 82 169
+                                     C90 145 107 130 116 115 C121 98 113 82 113 61
+                                     C113 37 127 18 150 18 Z"
+                                  fill="url(#skinLight)" opacity=".75" pointer-events="none"/>
+                            <!-- Detail kepala: telinga, mata, hidung dan kontur wajah -->
+                            <ellipse cx="112" cy="65" rx="5.5" ry="10" fill="#e7ad8c" stroke="#b8755c" stroke-width="1.2"/>
+                            <ellipse cx="188" cy="65" rx="5.5" ry="10" fill="#d99b78" stroke="#b8755c" stroke-width="1.2"/>
+                            <path d="M127 51 Q137 45 145 51 M155 51 Q164 45 173 51" fill="none" stroke="#9a5d4c" stroke-width="2.2" stroke-linecap="round"/>
+                            <ellipse cx="137" cy="55" rx="4.4" ry="2.6" fill="#fff0dc"/>
+                            <ellipse cx="163" cy="55" rx="4.4" ry="2.6" fill="#fff0dc"/>
+                            <circle cx="138" cy="55" r="1.7" fill="#49312c"/>
+                            <circle cx="162" cy="55" r="1.7" fill="#49312c"/>
+                            <path d="M150 55 Q146 65 150 68 Q153 70 156 67" fill="none" stroke="#b8755c" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M128 78 Q150 88 172 78" fill="none" stroke="#c98262" stroke-width="1.2" opacity=".7"/>
+                            <!-- Leher, bahu, kontur otot dan tulang selangka -->
+                            <path d="M126 105 Q137 119 133 137 M174 105 Q163 119 167 137"
+                                  fill="none" stroke="#a9654f" stroke-width="3" opacity=".36" stroke-linecap="round"/>
+                            <path d="M91 153 Q110 139 130 151 Q150 160 170 151 Q190 139 209 153"
+                                  fill="none" stroke="#a9654f" stroke-width="2.5" opacity=".55" stroke-linecap="round"/>
+                            <path d="M103 166 Q122 157 139 166 M161 166 Q178 157 197 166"
+                                  fill="none" stroke="#ffe6d2" stroke-width="3" opacity=".58" stroke-linecap="round"/>
+                            <path d="M101 216 Q112 226 121 217 M179 217 Q188 226 199 216"
+                                  fill="none" stroke="#9f5e4c" stroke-width="2" opacity=".22" stroke-linecap="round"/>
+                            <path d="M103 319 Q116 331 130 321 M170 321 Q184 331 197 319"
+                                  fill="none" stroke="url(#muscleShade)" stroke-width="8" opacity=".55" stroke-linecap="round"/>
+                            <!-- Face profile details and oral cavity -->
+                            <path d="M132 61 Q140 55 150 59 Q160 55 168 61 Q160 67 150 65 Q140 67 132 61Z"
+                                  fill="#8d243b" stroke="#702034" stroke-width="1.5"/>
+                            <path d="M137 60 Q150 56 163 60" fill="none" stroke="#fff0dc" stroke-width="2.5" stroke-linecap="round"/>
+                            <path d="M139 63 Q150 68 161 63" fill="none" stroke="#f2a4a4" stroke-width="2"/>
+                            <path d="M144 68 Q150 73 156 68" fill="none" stroke="#c56d67" stroke-width="2" stroke-linecap="round"/>
+                            <!-- Pharynx and esophagus: muscular tube -->
+                            <path d="M145 70 C143 82 145 91 146 100 L146 171
+                                     Q150 181 154 171 L154 100 C155 91 157 82 155 70
+                                     L151 76 L149 76 Z"
+                                  fill="url(#organRed)" stroke="#8f3441" stroke-width="1.7" filter="url(#softDepth)"/>
+                            <path d="M148 91 L148 164 M152 91 L152 164" stroke="#ffd1c5" stroke-width="1.2" opacity=".8"/>
+                            <!-- Liver, anatomically positioned above stomach -->
+                            <path d="M106 177 C118 158 151 157 174 170
+                                     C184 176 190 190 181 201
+                                     C169 210 147 205 133 211
+                                     C118 215 103 205 101 193
+                                     Q100 184 106 177Z"
+                                  fill="url(#liverReal)" stroke="#6e292b" stroke-width="2" filter="url(#softDepth)"/>
+                            <path d="M112 180 Q138 168 161 176 M119 192 Q144 184 166 191"
+                                  fill="none" stroke="#d88973" stroke-width="2" opacity=".65"/>
+                            <!-- Gallbladder -->
+                            <path d="M151 201 C146 207 147 216 153 219 C159 216 160 208 155 202Z"
+                                  fill="#76a95c" stroke="#3d713e" stroke-width="1.4"/>
+                            <!-- Stomach with curved body and visible inner fold -->
+                            <path d="M151 174 C161 174 169 180 170 191
+                                     C171 201 165 210 170 220
+                                     C176 232 166 242 154 238
+                                     C141 234 132 222 132 210
+                                     C132 201 139 195 139 187
+                                     C139 180 144 175 151 174Z"
+                                  fill="url(#stomachReal)" stroke="#9e3949" stroke-width="2" filter="url(#softDepth)"/>
+                            <path d="M145 187 C151 195 146 205 151 214 C154 220 160 225 160 232
+                                     M153 185 C161 194 156 204 162 211"
+                                  fill="none" stroke="#ffd1c2" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+                            <!-- Pancreas -->
+                            <path d="M132 232 C143 226 151 231 160 229 C169 227 176 232 171 237
+                                     C161 242 150 238 142 243 C135 245 128 240 132 232Z"
+                                  fill="#e6b56e" stroke="#b98245" stroke-width="1.5"/>
+                            <!-- Large intestine: haustrated colon around small bowel -->
+                            <path d="M116 246 C105 244 102 253 103 264 L103 298
+                                     C103 309 112 315 122 310 L127 305
+                                     L127 291 C119 296 114 291 114 284 L114 264
+                                     C114 258 120 258 126 260
+                                     L174 260 C180 258 186 258 186 265 L186 286
+                                     C186 294 180 297 173 291 L173 306
+                                     C183 316 197 309 197 297 L197 258
+                                     C197 247 187 242 176 246
+                                     L124 246Z"
+                                  fill="url(#colonReal)" stroke="#9a5a32" stroke-width="2.5" filter="url(#softDepth)"/>
+                            <!-- Colon segment grooves / haustra -->
+                            <g fill="none" stroke="#ffe0a9" stroke-width="2" opacity=".9">
+                                <path d="M106 258 Q113 263 114 270 M106 276 Q113 281 114 288 M108 298 Q115 302 122 300"/>
+                                <path d="M126 250 Q131 256 137 258 M145 250 Q150 256 156 258 M164 250 Q169 256 175 258"/>
+                                <path d="M185 258 Q178 263 186 270 M185 278 Q178 283 186 290 M181 299 Q176 303 173 300"/>
+                            </g>
+                            <!-- Small intestine: many realistic coiled loops -->
+                            <path d="M128 263 C139 255 163 260 166 270
+                                     C169 279 144 279 139 272
+                                     C133 265 125 274 131 282
+                                     C138 291 162 282 166 291
+                                     C170 300 146 304 137 296
+                                     C127 288 124 300 133 306
+                                     C143 314 165 307 168 300"
+                                  fill="none" stroke="#9c3e49" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+                            <path d="M128 263 C139 255 163 260 166 270
+                                     C169 279 144 279 139 272
+                                     C133 265 125 274 131 282
+                                     C138 291 162 282 166 291
+                                     C170 300 146 304 137 296
+                                     C127 288 124 300 133 306
+                                     C143 314 165 307 168 300"
+                                  fill="none" stroke="url(#gutReal)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M133 267 Q145 263 157 269 M136 282 Q148 278 160 285 M137 299 Q149 295 161 300"
+                                  fill="none" stroke="#ffd5c5" stroke-width="1.5" stroke-linecap="round"/>
+                            <!-- Rectum and anal opening -->
+                            <path d="M150 306 C147 315 147 323 148 334 Q150 342 152 334 L153 306Z"
+                                  fill="url(#organRed)" stroke="#8e3440" stroke-width="1.7"/>
+                            <ellipse cx="150" cy="339" rx="6" ry="3.5" fill="#7b2636" stroke="#e6a08c" stroke-width="1.5"/>
+                            <!-- subtle anatomical highlights -->
+                            <path d="M95 170 Q86 220 95 256 M205 170 Q214 220 205 256"
+                                  fill="none" stroke="#fff1df" stroke-width="3" opacity=".45" stroke-linecap="round"/>
+                            <!-- Refleksi kulit dan kontur abdomen untuk ilusi model 3D -->
+                            <path d="M108 235 C101 265 104 300 111 329 M192 235 C199 265 196 300 189 329"
+                                  fill="none" stroke="#8f4d3c" stroke-width="3" opacity=".22" stroke-linecap="round"/>
+                            <path d="M120 343 Q150 353 180 343 M124 352 Q150 362 176 352"
+                                  fill="none" stroke="#ffe6d2" stroke-width="2" opacity=".32" stroke-linecap="round"/>
+                            <path d="M116 375 Q150 389 184 375 M118 398 Q150 411 182 398"
+                                  fill="none" stroke="#a9654f" stroke-width="1.6" opacity=".16" stroke-linecap="round"/>
+                            <!-- DROPZONES (Interactive Drop Targets) -->
+                            <!-- DROPZONES (Interactive Drop Targets) -->
+                            <!-- 1. Mulut -->
+                            <g class="dropzone" data-organ="mulut" transform="translate(150, 65)">
+                                <circle r="18" fill="#ffffff" fill-opacity=".82" stroke="#0284c7" stroke-width="2" class="dropzone-bg"/>
+                                <text text-anchor="middle" dy="5" font-size="11" font-weight="bold" fill="#0284c7">1</text>
+                            </g>
+                            <line x1="150" y1="65" x2="220" y2="65" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+                            <!-- 2. Kerongkongan -->
+                            <g class="dropzone" data-organ="kerongkongan" transform="translate(150, 130)">
+                                <circle r="18" fill="#ffffff" fill-opacity=".82" stroke="#0284c7" stroke-width="2" class="dropzone-bg"/>
+                                <text text-anchor="middle" dy="5" font-size="11" font-weight="bold" fill="#0284c7">2</text>
+                            </g>
+                            <line x1="150" y1="130" x2="70" y2="130" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+                            <!-- 3. Lambung -->
+                            <g class="dropzone" data-organ="lambung" transform="translate(160, 195)">
+                                <circle r="18" fill="#ffffff" fill-opacity=".82" stroke="#0284c7" stroke-width="2" class="dropzone-bg"/>
+                                <text text-anchor="middle" dy="5" font-size="11" font-weight="bold" fill="#0284c7">3</text>
+                            </g>
+                            <line x1="160" y1="195" x2="230" y2="195" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+                            <!-- 4. Usus Halus -->
+                            <g class="dropzone" data-organ="usus_halus" transform="translate(145, 265)">
+                                <circle r="18" fill="#ffffff" fill-opacity=".82" stroke="#0284c7" stroke-width="2" class="dropzone-bg"/>
+                                <text text-anchor="middle" dy="5" font-size="11" font-weight="bold" fill="#0284c7">4</text>
+                            </g>
+                            <line x1="145" y1="265" x2="70" y2="265" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+                            <!-- 5. Usus Besar -->
+                            <g class="dropzone" data-organ="usus_besar" transform="translate(180, 260)">
+                                <circle r="18" fill="#ffffff" fill-opacity=".82" stroke="#0284c7" stroke-width="2" class="dropzone-bg"/>
+                                <text text-anchor="middle" dy="5" font-size="11" font-weight="bold" fill="#0284c7">5</text>
+                            </g>
+                            <line x1="180" y1="260" x2="245" y2="260" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+                            <!-- 6. Anus -->
+                            <g class="dropzone" data-organ="anus" transform="translate(150, 325)">
+                                <circle r="18" fill="#ffffff" fill-opacity=".82" stroke="#0284c7" stroke-width="2" class="dropzone-bg"/>
+                                <text text-anchor="middle" dy="5" font-size="11" font-weight="bold" fill="#0284c7">6</text>
+                            </g>
+                            <line x1="150" y1="325" x2="70" y2="325" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3,3"/>
+                        </svg>
+
+                        <!-- Labels Overlay Pins for Dropped Items -->
+                        <div id="placed-labels-container" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+                </div>
+
+                <!-- Drag Items Bank -->
+                <div class="md:col-span-5 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-full min-h-[420px]">
+                    <div>
+                        <h3 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-hand-pointer text-amber-500"></i> Pilihan Kartu Organ
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-4">Tarik kartu organ di bawah ini menuju ke nomor/posisi target yang tepat pada tubuh.</p>
+
+                        <!-- Draggable Organ Cards -->
+                        <div id="organ-bank" class="grid grid-cols-2 gap-3">
+                            <!-- Dynamically generated or static draggables -->
+                        </div>
+                    </div>
+
+                    <!-- Fact Callout Box -->
+                    <div id="fact-box" class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 transition-all hidden">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 bg-emerald-100 text-emerald-600 rounded-lg text-lg">
+                                <i class="fa-solid fa-lightbulb"></i>
+                            </div>
+                            <div>
+                                <h4 id="fact-title" class="font-bold text-xs uppercase tracking-wider text-emerald-700">Fakta Organ</h4>
+                                <p id="fact-desc" class="text-xs text-slate-600 mt-1 leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= LEVEL 2: URUTKAN PERJALANAN ================= -->
+        <section id="level2" class="level-container space-y-4 hidden">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-2">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-route text-sky-500"></i> Level 2: Urutkan Perjalanan Makanan
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-500">Susunlah urutan perjalanan makanan dari awal masuk hingga sisa pencernaan dikeluarkan!</p>
+                </div>
+                <button onclick="checkLevel2Order()" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-circle-check"></i> Cek Urutan
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Sortable List Container -->
+                <div class="lg:col-span-7 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Urutan Organ (Awal &rarr; Akhir)</span>
+                        <span class="text-xs text-slate-400"><i class="fa-solid fa-arrows-up-down"></i> Geser atau gunakan panah</span>
+                    </div>
+
+                    <div id="sortable-list" class="space-y-2.5">
+                        <!-- Cards will be injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Animation & Simulation Viewport -->
+                <div class="lg:col-span-5 bg-slate-900 rounded-2xl p-5 text-white flex flex-col justify-between relative overflow-hidden min-h-[380px] shadow-lg">
+                    <!-- Canvas for Animated Food Journey -->
+                    <canvas id="foodFlowCanvas" class="absolute inset-0 w-full h-full z-0"></canvas>
+
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-sky-400 animate-ping"></span> Simulasi Pencernaan
+                            </span>
+                            <span id="simulation-status" class="text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full text-slate-300">Siap</span>
+                        </div>
+                        <h3 class="text-lg font-bold mt-2">Aliran Makanan</h3>
+                        <p class="text-xs text-slate-400 mt-1">Tekan tombol "Cek Urutan" untuk menjalankan simulasi makanan melintasi saluran pencernaan.</p>
+                    </div>
+
+                    <!-- Interactive Mascot / Info Popup inside canvas -->
+                    <div id="sim-feedback" class="relative z-10 bg-slate-800/90 backdrop-blur-md p-4 rounded-xl border border-slate-700 mt-auto">
+                        <p class="text-xs text-slate-300 leading-relaxed" id="sim-text">
+                            Susun organ di sebelah kiri dengan benar untuk memulai perjalanan makanan!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= LEVEL 3: ORGAN - FUNGSI - ENZIM ================= -->
+        <section id="level3" class="level-container space-y-4 hidden">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-2">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-sky-500"></i> Level 3: Cocokkan Organ – Fungsi – Enzim
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-500">Pilih 1 Organ, 1 Fungsi Utama, dan 1 Enzim/Cairan yang saling berhubungan untuk membentuk triplet yang benar.</p>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 text-purple-800 text-xs px-3 py-1.5 rounded-xl font-medium">
+                    Cocok: <span id="l3-matched-count" class="font-bold text-purple-600">0</span> / 4 Kelompok
+                </div>
+            </div>
+
+            <!-- Matching Grid (3 Columns) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 relative">
+                <!-- Column 1: Organ -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2 border-b pb-2">
+                        <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-600 text-xs flex items-center justify-center font-bold">1</span> Organ
+                    </h3>
+                    <div id="col-organ" class="space-y-2.5">
+                        <!-- Injected JS -->
+                    </div>
+                </div>
+
+                <!-- Column 2: Fungsi -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2 border-b pb-2">
+                        <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-600 text-xs flex items-center justify-center font-bold">2</span> Fungsi Utama
+                    </h3>
+                    <div id="col-fungsi" class="space-y-2.5">
+                        <!-- Injected JS -->
+                    </div>
+                </div>
+
+                <!-- Column 3: Enzim / Sekret -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2 border-b pb-2">
+                        <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 text-xs flex items-center justify-center font-bold">3</span> Enzim / Sekret
+                    </h3>
+                    <div id="col-enzim" class="space-y-2.5">
+                        <!-- Injected JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500">
+        <p>© 2026 Petualangan Sistem Pencernaan - Media Pembelajaran IPA Interaktif</p>
+    </footer>
+
+    <!-- MODAL: SCORE & COMPLETION RESULT -->
+    <div id="resultModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border border-slate-100 transform transition-all scale-95 opacity-0" id="modalCard">
+            <!-- Celebration Header Icon -->
+            <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-inner">
+                <i class="fa-solid fa-crown"></i>
+            </div>
+
+            <h3 class="text-2xl font-extrabold text-slate-800">Luar Biasa!</h3>
+            <p class="text-xs text-slate-500 mt-1">Kamu telah menyelesaikan semua tantangan pembelajaran pencernaan.</p>
+
+            <!-- Star Rating -->
+            <div class="flex justify-center gap-2 my-4" id="starContainer">
+                <i class="fa-solid fa-star text-3xl text-amber-400"></i>
+                <i class="fa-solid fa-star text-3xl text-amber-400"></i>
+                <i class="fa-solid fa-star text-3xl text-amber-400"></i>
+            </div>
+
+            <!-- Detailed Stats -->
+            <div class="bg-slate-50 p-4 rounded-2xl my-4 space-y-2 text-left text-xs text-slate-600 border border-slate-200">
+                <div class="flex justify-between">
+                    <span>Total Skor:</span>
+                    <span id="finalScore" class="font-bold text-slate-800 text-sm">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Waktu Selesai:</span>
+                    <span id="finalTime" class="font-bold text-slate-800 text-sm">00:00</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Predikat Apresiasi:</span>
+                    <span id="finalAppreciation" class="font-bold text-emerald-600 text-sm">Ahli Pencernaan</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3 mt-6">
+                <button onclick="restartGame()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm transition">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> Main Lagi
+                </button>
+                <button onclick="closeModal()" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl text-sm shadow-md transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO SYNTHESIZER (WEB AUDIO API) & GAME ENGINE -->
+    <script>
+        /* ==========================================================================
+           1. AUDIO ENGINE (Web Audio API)
+           ========================================================================== */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            playTone(freq, type, duration, gainValue = 0.1) {
+                if (this.muted) return;
+                this.init();
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(gainValue, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) { console.error(e); }
+            }
+
+            correct() {
+                // High double ding
+                this.playTone(523.25, 'sine', 0.15, 0.15); // C5
+                setTimeout(() => this.playTone(659.25, 'sine', 0.25, 0.15), 100); // E5
+            }
+
+            wrong() {
+                // Low buzz
+                this.playTone(180, 'sawtooth', 0.25, 0.15);
+                setTimeout(() => this.playTone(140, 'sawtooth', 0.3, 0.15), 150);
+            }
+
+            click() {
+                this.playTone(800, 'sine', 0.05, 0.05);
+            }
+
+            complete() {
+                // Fanfare melody
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => this.playTone(freq, 'triangle', 0.3, 0.2), idx * 120);
+                });
+            }
+        }
+
+        const sound = new SoundFX();
+
+        function toggleSound() {
+            sound.muted = !sound.muted;
+            const icon = document.getElementById('soundIcon');
+            if (sound.muted) {
+                icon.className = 'fa-solid fa-volume-xmark text-rose-500';
+            } else {
+                icon.className = 'fa-solid fa-volume-high';
+                sound.click();
+            }
+        }
+
+        /* ==========================================================================
+           2. GLOBAL STATE & DATA
+           ========================================================================== */
+        let score = 0;
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let currentLevel = 1;
+
+        const ORGANS_DATA = [
+            { id: 'mulut', name: 'Mulut', fact: 'Mulut melakukan pencernaan mekanis (gigi) & kimiawi (enzim amilase/ptialin).' },
+            { id: 'kerongkongan', name: 'Kerongkongan', fact: 'Kerongkongan mendorong makanan ke lambung dengan gerak meremas (peristaltik).' },
+            { id: 'lambung', name: 'Lambung', fact: 'Lambung menghasilkan asam HCL untuk membunuh kuman & pepsingen untuk mencerna protein.' },
+            { id: 'usus_halus', name: 'Usus Halus', fact: 'Tempat penyerapan sari-sari makanan utama & pencernaan kimiawi terlengkap.' },
+            { id: 'usus_besar', name: 'Usus Besar', fact: 'Usus besar menyerap kembali air & garam mineral serta dibantu pembusukan oleh E. coli.' },
+            { id: 'anus', name: 'Anus', fact: 'Muara akhir saluran pencernaan untuk mengeluarkan feses (defekasi).' }
+        ];
+
+        // Correct order for Level 2
+        const CORRECT_ORDER = ['mulut', 'kerongkongan', 'lambung', 'usus_halus', 'usus_besar', 'anus'];
+
+        // Level 3 Match triplets
+        const MATCH_TRIPLETS = [
+            {
+                id: 'mulut',
+                organ: 'Mulut',
+                fungsi: 'Mengunyah & memecah karbohidrat sederhana',
+                enzim: 'Enzim Amilase (Ptialin)'
+            },
+            {
+                id: 'lambung',
+                organ: 'Lambung',
+                fungsi: 'Membunuh kuman & mencerna awal protein',
+                enzim: 'Enzim Pepsin & Asam Klorida (HCl)'
+            },
+            {
+                id: 'usus_halus',
+                organ: 'Usus Halus',
+                fungsi: 'Menyerap nutrisi & memecah lemak/protein',
+                enzim: 'Enzim Lipase & Tripsin Pankreas'
+            },
+            {
+                id: 'usus_besar',
+                organ: 'Usus Besar',
+                fungsi: 'Menyerap air & pembentukan feses',
+                enzim: 'Bakteri E. coli (Pembusukan)'
+            }
+        ];
+
+        /* ==========================================================================
+           3. TIMER & NAVIGATION ENGINE
+           ========================================================================== */
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+                const secs = String(timerSeconds % 60).padStart(2, '0');
+                document.getElementById('timerDisplay').textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function addScore(points) {
+            score += points;
+            document.getElementById('scoreDisplay').textContent = score;
+        }
+
+        function switchLevel(lvl) {
+            sound.click();
+            currentLevel = lvl;
+
+            // Toggle Level Containers
+            document.querySelectorAll('.level-container').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`level${lvl}`).classList.remove('hidden');
+
+            // Toggle Tabs Style
+            document.querySelectorAll('.level-tab').forEach((tab, index) => {
+                if (index + 1 === lvl) {
+                    tab.classList.remove('border-transparent', 'opacity-70');
+                    tab.classList.add('border-sky-400', 'bg-slate-700');
+                } else {
+                    tab.classList.add('border-transparent', 'opacity-70');
+                    tab.classList.remove('border-sky-400', 'bg-slate-700');
+                }
+            });
+
+            if (lvl === 2) {
+                initLevel2Canvas();
+            }
+        }
+
+        /* ==========================================================================
+           4. LEVEL 1: PASANG ORGAN (Drag and Drop)
+           ========================================================================== */
+        let l1PlacedCount = 0;
+
+        function initLevel1() {
+            const bank = document.getElementById('organ-bank');
+            bank.innerHTML = '';
+            l1PlacedCount = 0;
+            document.getElementById('l1-progress').textContent = '0';
+            document.getElementById('placed-labels-container').innerHTML = '';
+            document.getElementById('fact-box').classList.add('hidden');
+
+            // Shuffle cards
+            const shuffled = [...ORGANS_DATA].sort(() => Math.random() - 0.5);
+
+            shuffled.forEach(organ => {
+                const card = document.createElement('div');
+                card.id = `draggable-${organ.id}`;
+                card.draggable = true;
+                card.dataset.organ = organ.id;
+                card.className = "p-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 text-xs sm:text-sm flex items-center justify-between cursor-grab hover:border-sky-400 hover:bg-sky-50 transition shadow-sm active:cursor-grabbing";
+                card.innerHTML = `
+                    <span>${organ.name}</span>
+                    <i class="fa-solid fa-grip-vertical text-slate-400"></i>
+                `;
+
+                // Drag Events
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+
+                bank.appendChild(card);
+            });
+
+            // Setup Dropzones
+            const dropzones = document.querySelectorAll('.dropzone');
+            dropzones.forEach(zone => {
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('dragleave', handleDragLeave);
+                zone.addEventListener('drop', handleDrop);
+            });
+        }
+
+        let draggedItem = null;
+
+        function handleDragStart(e) {
+            sound.click();
+            draggedItem = this;
+            e.dataTransfer.setData('text/plain', this.dataset.organ);
+            setTimeout(() => this.classList.add('opacity-40'), 0);
+        }
+
+        function handleDragEnd() {
+            if (draggedItem) draggedItem.classList.remove('opacity-40');
+            draggedItem = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            this.querySelector('.dropzone-bg').setAttribute('fill', '#e0f2fe');
+        }
+
+        function handleDragLeave() {
+            this.querySelector('.dropzone-bg').setAttribute('fill', '#ffffff');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const targetOrgan = this.dataset.organ;
+            const draggedOrgan = e.dataTransfer.getData('text/plain');
+
+            this.querySelector('.dropzone-bg').setAttribute('fill', '#ffffff');
+
+            if (targetOrgan === draggedOrgan) {
+                // CORRECT DROP
+                sound.correct();
+                addScore(15);
+                l1PlacedCount++;
+                document.getElementById('l1-progress').textContent = l1PlacedCount;
+
+                // Visual Success Highlight on Dropzone
+                const circle = this.querySelector('circle');
+                circle.setAttribute('fill', '#10b981');
+                circle.setAttribute('stroke', '#059669');
+                const text = this.querySelector('text');
+                text.setAttribute('fill', '#ffffff');
+
+                // Disable Draggable Card
+                const card = document.getElementById(`draggable-${draggedOrgan}`);
+                if (card) {
+                    card.classList.add('pointer-events-none', 'opacity-30', 'bg-emerald-50', 'border-emerald-300');
+                    card.draggable = false;
+                }
+
+                // Show Fact Pop-up
+                const factData = ORGANS_DATA.find(o => o.id === targetOrgan);
+                if (factData) {
+                    document.getElementById('fact-title').textContent = `Fakta ${factData.name}`;
+                    document.getElementById('fact-desc').textContent = factData.fact;
+                    document.getElementById('fact-box').classList.remove('hidden');
+                }
+
+                // Check Level 1 Complete
+                if (l1PlacedCount === ORGANS_DATA.length) {
+                    setTimeout(() => {
+                        sound.complete();
+                        confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
+                    }, 300);
+                }
+
+            } else {
+                // WRONG DROP
+                sound.wrong();
+                const card = document.getElementById(`draggable-${draggedOrgan}`);
+                if (card) {
+                    card.classList.add('shake', 'border-rose-400');
+                    setTimeout(() => card.classList.remove('shake', 'border-rose-400'), 500);
+                }
+            }
+        }
+
+        /* ==========================================================================
+           5. LEVEL 2: URUTKAN PERJALANAN MAKANAN (Sortable Order)
+           ========================================================================== */
+        let currentOrder = [];
+
+        function initLevel2() {
+            const container = document.getElementById('sortable-list');
+            container.innerHTML = '';
+
+            // Shuffle initial order
+            currentOrder = [...ORGANS_DATA].sort(() => Math.random() - 0.5);
+
+            renderSortableList();
+        }
+
+        function renderSortableList() {
+            const container = document.getElementById('sortable-list');
+            container.innerHTML = '';
+
+            currentOrder.forEach((organ, index) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl shadow-sm text-xs sm:text-sm font-semibold text-slate-700 transition hover:border-sky-300";
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="w-6 h-6 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center text-xs font-bold">${index + 1}</span>
+                        <span>${organ.name}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="moveOrder(${index}, -1)" class="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition" ${index === 0 ? 'disabled class="opacity-30 p-1.5"' : ''}>
+                            <i class="fa-solid fa-chevron-up"></i>
+                        </button>
+                        <button onclick="moveOrder(${index}, 1)" class="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition" ${index === currentOrder.length - 1 ? 'disabled class="opacity-30 p-1.5"' : ''}>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function moveOrder(index, direction) {
+            sound.click();
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= currentOrder.length) return;
+
+            const temp = currentOrder[index];
+            currentOrder[index] = currentOrder[targetIndex];
+            currentOrder[targetIndex] = temp;
+
+            renderSortableList();
+        }
+
+        function checkLevel2Order() {
+            const userIds = currentOrder.map(o => o.id);
+            let isCorrect = true;
+            let firstWrongIndex = -1;
+
+            for (let i = 0; i < CORRECT_ORDER.length; i++) {
+                if (userIds[i] !== CORRECT_ORDER[i]) {
+                    isCorrect = false;
+                    firstWrongIndex = i;
+                    break;
+                }
+            }
+
+            if (isCorrect) {
+                sound.correct();
+                sound.complete();
+                addScore(30);
+                document.getElementById('simulation-status').textContent = 'Berhasil!';
+                document.getElementById('simulation-status').className = 'text-xs bg-emerald-500 text-white font-bold px-2.5 py-1 rounded-full';
+                document.getElementById('sim-text').textContent = 'Sempurna! Makanan bergerak lancar dari mulut, kerongkongan, lambung, usus halus, usus besar, hingga anus.';
+                
+                startFoodFlowAnimation();
+                confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+            } else {
+                sound.wrong();
+                document.getElementById('simulation-status').textContent = 'Urutan Salah';
+                document.getElementById('simulation-status').className = 'text-xs bg-rose-500 text-white font-bold px-2.5 py-1 rounded-full';
+                document.getElementById('sim-text').textContent = `Petunjuk: Posisi ke-${firstWrongIndex + 1} (${currentOrder[firstWrongIndex].name}) belum tepat pada jalurnya. Coba periksa kembali!`;
+            }
+        }
+
+        // Animation Canvas logic for Level 2
+        let animCtx = null;
+        let animId = null;
+
+        function initLevel2Canvas() {
+            const canvas = document.getElementById('foodFlowCanvas');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            animCtx = canvas.getContext('2d');
+            drawCanvasBackground();
+        }
+
+        function drawCanvasBackground() {
+            if (!animCtx) return;
+            const w = animCtx.canvas.width;
+            const h = animCtx.canvas.height;
+            animCtx.clearRect(0, 0, w, h);
+
+            // Simple pathway representation
+            animCtx.beginPath();
+            animCtx.moveTo(w * 0.2, h * 0.2);
+            animCtx.lineTo(w * 0.8, h * 0.2);
+            animCtx.lineTo(w * 0.8, h * 0.5);
+            animCtx.lineTo(w * 0.2, h * 0.5);
+            animCtx.lineTo(w * 0.2, h * 0.8);
+            animCtx.lineTo(w * 0.8, h * 0.8);
+            animCtx.strokeStyle = '#334155';
+            animCtx.lineWidth = 14;
+            animCtx.lineCap = 'round';
+            animCtx.stroke();
+        }
+
+        function startFoodFlowAnimation() {
+            if (animId) cancelAnimationFrame(animId);
+            const canvas = document.getElementById('foodFlowCanvas');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Waypoints along path
+            const waypoints = [
+                {x: w * 0.2, y: h * 0.2},
+                {x: w * 0.8, y: h * 0.2},
+                {x: w * 0.8, y: h * 0.5},
+                {x: w * 0.2, y: h * 0.5},
+                {x: w * 0.2, y: h * 0.8},
+                {x: w * 0.8, y: h * 0.8}
+            ];
+
+            let progress = 0;
+
+            function animate() {
+                drawCanvasBackground();
+
+                // Calculate position along multi-segment line
+                const totalSegments = waypoints.length - 1;
+                const currentSegment = Math.min(Math.floor(progress * totalSegments), totalSegments - 1);
+                const segProgress = (progress * totalSegments) - currentSegment;
+
+                const p1 = waypoints[currentSegment];
+                const p2 = waypoints[currentSegment + 1];
+
+                const currX = p1.x + (p2.x - p1.x) * segProgress;
+                const currY = p1.y + (p2.y - p1.y) * segProgress;
+
+                // Draw Food Particle
+                animCtx.beginPath();
+                animCtx.arc(currX, currY, 10, 0, Math.PI * 2);
+                animCtx.fillStyle = '#f59e0b'; // Apple / Food particle
+                animCtx.fill();
+                animCtx.lineWidth = 3;
+                animCtx.strokeStyle = '#ffffff';
+                animCtx.stroke();
+
+                progress += 0.005;
+                if (progress <= 1) {
+                    animId = requestAnimationFrame(animate);
+                } else {
+                    progress = 0;
+                }
+            }
+
+            animate();
+        }
+
+        /* ==========================================================================
+           6. LEVEL 3: MATCH ORGAN - FUNGSI - ENZIM
+           ========================================================================== */
+        let selectedOrgan = null;
+        let selectedFungsi = null;
+        let selectedEnzim = null;
+        let l3MatchedCount = 0;
+
+        function initLevel3() {
+            l3MatchedCount = 0;
+            document.getElementById('l3-matched-count').textContent = '0';
+            selectedOrgan = null;
+            selectedFungsi = null;
+            selectedEnzim = null;
+
+            const organCol = document.getElementById('col-organ');
+            const fungsiCol = document.getElementById('col-fungsi');
+            const enzimCol = document.getElementById('col-enzim');
+
+            organCol.innerHTML = '';
+            fungsiCol.innerHTML = '';
+            enzimCol.innerHTML = '';
+
+            // Shuffle each column independently
+            const organs = [...MATCH_TRIPLETS].sort(() => Math.random() - 0.5);
+            const fungsis = [...MATCH_TRIPLETS].sort(() => Math.random() - 0.5);
+            const enzims = [...MATCH_TRIPLETS].sort(() => Math.random() - 0.5);
+
+            organs.forEach(item => {
+                const btn = createMatchButton(item.organ, 'organ', item.id);
+                organCol.appendChild(btn);
+            });
+
+            fungsis.forEach(item => {
+                const btn = createMatchButton(item.fungsi, 'fungsi', item.id);
+                fungsiCol.appendChild(btn);
+            });
+
+            enzims.forEach(item => {
+                const btn = createMatchButton(item.enzim, 'enzim', item.id);
+                enzimCol.appendChild(btn);
+            });
+        }
+
+        function createMatchButton(text, type, matchId) {
+            const btn = document.createElement('button');
+            btn.className = `match-btn-${type} w-full text-left p-3 rounded-xl border-2 border-slate-200 bg-slate-50 text-xs sm:text-sm font-semibold text-slate-700 transition hover:border-sky-300`;
+            btn.dataset.type = type;
+            btn.dataset.matchId = matchId;
+            btn.textContent = text;
+
+            btn.onclick = function() {
+                sound.click();
+                handleMatchSelect(this, type, matchId);
+            };
+
+            return btn;
+        }
+
+        function handleMatchSelect(btn, type, matchId) {
+            // Deselect previous selection in same column
+            document.querySelectorAll(`.match-btn-${type}`).forEach(b => {
+                if (!b.classList.contains('bg-emerald-100')) {
+                    b.classList.remove('border-sky-500', 'bg-sky-50', 'ring-2', 'ring-sky-200');
+                }
+            });
+
+            // Highlight current selection
+            btn.classList.add('border-sky-500', 'bg-sky-50', 'ring-2', 'ring-sky-200');
+
+            if (type === 'organ') selectedOrgan = { btn, matchId };
+            if (type === 'fungsi') selectedFungsi = { btn, matchId };
+            if (type === 'enzim') selectedEnzim = { btn, matchId };
+
+            // Check triplet match if all 3 columns selected
+            if (selectedOrgan && selectedFungsi && selectedEnzim) {
+                if (selectedOrgan.matchId === selectedFungsi.matchId && selectedFungsi.matchId === selectedEnzim.matchId) {
+                    // CORRECT MATCH
+                    sound.correct();
+                    addScore(25);
+                    l3MatchedCount++;
+                    document.getElementById('l3-matched-count').textContent = l3MatchedCount;
+
+                    // Lock & Style Matched Triplet
+                    [selectedOrgan.btn, selectedFungsi.btn, selectedEnzim.btn].forEach(b => {
+                        b.className = "w-full text-left p-3 rounded-xl border-2 border-emerald-400 bg-emerald-50 text-xs sm:text-sm font-bold text-emerald-800 opacity-80 pointer-events-none shadow-sm";
+                    });
+
+                    // Clear Selections
+                    selectedOrgan = null;
+                    selectedFungsi = null;
+                    selectedEnzim = null;
+
+                    // Check Level 3 Completion
+                    if (l3MatchedCount === MATCH_TRIPLETS.length) {
+                        setTimeout(() => {
+                            sound.complete();
+                            showFinalResults();
+                        }, 500);
+                    }
+                } else {
+                    // WRONG MATCH
+                    sound.wrong();
+                    const wrongBtns = [selectedOrgan.btn, selectedFungsi.btn, selectedEnzim.btn];
+                    wrongBtns.forEach(b => b.classList.add('shake', 'border-rose-400'));
+
+                    setTimeout(() => {
+                        wrongBtns.forEach(b => {
+                            b.classList.remove('shake', 'border-rose-400', 'border-sky-500', 'bg-sky-50', 'ring-2', 'ring-sky-200');
+                        });
+                        selectedOrgan = null;
+                        selectedFungsi = null;
+                        selectedEnzim = null;
+                    }, 500);
+                }
+            }
+        }
+
+        /* ==========================================================================
+           7. MODAL & RESTART ENGINE
+           ========================================================================== */
+        function showFinalResults() {
+            clearInterval(timerInterval);
+
+            document.getElementById('finalScore').textContent = score;
+            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById('finalTime').textContent = `${mins}:${secs}`;
+
+            // Calculate Appreciation Title
+            let title = 'Pemula Pencernaan';
+            if (score >= 120) title = 'Master Sistem Pencernaan 🌟';
+            else if (score >= 80) title = 'Ahli Pencernaan Muda 🎓';
+            document.getElementById('finalAppreciation').textContent = title;
+
+            // Trigger Modal with Animation
+            const modal = document.getElementById('resultModal');
+            const card = document.getElementById('modalCard');
+            modal.classList.remove('hidden');
+
+            setTimeout(() => {
+                card.classList.remove('scale-95', 'opacity-0');
+                card.classList.add('scale-100', 'opacity-100');
+                confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
+            }, 50);
+        }
+
+        function closeModal() {
+            document.getElementById('resultModal').classList.add('hidden');
+        }
+
+        function resetGameModal() {
+            if (confirm('Apakah Anda yakin ingin mengulang permainan dari awal?')) {
+                restartGame();
+            }
+        }
+
+        function restartGame() {
+            closeModal();
+            score = 0;
+            timerSeconds = 0;
+            document.getElementById('scoreDisplay').textContent = '0';
+            document.getElementById('timerDisplay').textContent = '00:00';
+
+            initLevel1();
+            initLevel2();
+            initLevel3();
+            switchLevel(1);
+            startTimer();
+        }
+
+        /* ==========================================================================
+           8. INIT ON LOAD
+           ========================================================================== */
+        window.onload = function() {
+            initLevel1();
+            initLevel2();
+            initLevel3();
+            startTimer();
+
+            window.addEventListener('resize', () => {
+                if (currentLevel === 2) initLevel2Canvas();
+            });
+        };
+    </script>
+</body>
+</html>
